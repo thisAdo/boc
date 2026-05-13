@@ -22,7 +22,7 @@
     "form-data": "^4.0.0",
     "fluent-ffmpeg": "^2.1.2",
     "fs": "^0.0.1-security",
-    "jimp": "^0.22.12",
+    "jimp": "*",
     "lodash": "latest",
     "lurcloud": "^1.1.5",
     "moment-timezone": "^0.5.43",
