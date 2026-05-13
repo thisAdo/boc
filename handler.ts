@@ -104,7 +104,7 @@ export default async function handler(sock: any, m: any) {
       global.db.chats[m.chat] = { id: m.chat, detect: true, welcome: true, antilink: true }
     }
     if (!global.db.settings[botId]) {
-      global.db.users[botId] = { bot: botId }
+      global.db.settings[botId] = { bot: botId }
     }
 
     let groupMetadata = null
