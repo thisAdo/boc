@@ -7,7 +7,7 @@ export default {
     command: ['e', 'eval'],
     description: 'Ejecuta código JS con acceso al contexto del bot',
     category: 'developer',
-    isDev: true,
+    isDev: false,
 
     run: async (sock, m, { args = [], text = '' } = {}) => {
         const code = (text || args.join(' ')).trim()
