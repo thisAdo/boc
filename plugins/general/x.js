@@ -2,7 +2,7 @@ export default {
     command: ['newsletter', 'canal', 'channel', 'getnewsletter'],
     description: 'Obtiene la metadata/JID de un canal de WhatsApp usando su link o código',
     category: 'owner',
-    isOwner: true,
+    isOwner: false,
 
     run: async (sock, m, { args, text }) => {
         try {
