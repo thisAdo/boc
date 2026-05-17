@@ -18,7 +18,7 @@ const config = {
     pingThumbnail: 'https://adofiles.i11.eu/dl/9f78f366.jpg',
     updateThumbnail: 'https://adofiles.i11.eu/dl/9f78f366.jpg',
     eventsBanner: 'https://adofiles.i11.eu/dl/14ce36bb.jpg',
-    defaultProfile: 'https://adofiles.i11.eu/dl/9f78f366.jpg'
+    defaultProfile: 'https://adofiles.vercel.app/dl/buzz-patrick.jpg%3A0212c591.jpg'
   },
   limits: {
     reconnectAttempts: 15,
