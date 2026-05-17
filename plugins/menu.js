@@ -25,7 +25,7 @@ function sortCategories(a = '', b = '') {
   })
 }
 
-async function getThumbnailBuffer(url) {
+async function getThumbnailData(url) {
   const res = await fetch(url)
 
   if (!res.ok) {
@@ -35,10 +35,24 @@ async function getThumbnailBuffer(url) {
   const raw = Buffer.from(await res.arrayBuffer())
 
   try {
-    const { buffer } = await extractImageThumb(raw, 300)
-    return buffer
+    const width = 800
+    const { buffer, original } = await extractImageThumb(raw, width)
+
+    const height = original?.width && original?.height
+      ? Math.round(width * original.height / original.width)
+      : 450
+
+    return {
+      buffer,
+      width,
+      height
+    }
   } catch {
-    return raw
+    return {
+      buffer: raw,
+      width: 800,
+      height: 450
+    }
   }
 }
 
@@ -134,7 +148,8 @@ export default {
       ].join('\n')
 
       const thumbUrl = 'https://adofiles.vercel.app/dl/buzz-patrick.jpg%3A0212c591.jpg'
-      const thumbBuffer = await getThumbnailBuffer(thumbUrl)
+      const thumb = await getThumbnailData(thumbUrl)
+
       const fakeDocument = Buffer.from(text, 'utf-8')
 
       const prepared = await prepareWAMessageMedia(
@@ -143,9 +158,9 @@ export default {
           mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           fileName: `🍄 ${config.bot.name} Menu.xlsx`,
           caption: text,
-          jpegThumbnail: thumbBuffer,
-          thumbnailWidth: 300,
-          thumbnailHeight: 180
+          jpegThumbnail: thumb.buffer,
+          thumbnailWidth: thumb.width,
+          thumbnailHeight: thumb.height
         },
         {
           upload: client.waUploadToServer
@@ -159,9 +174,9 @@ export default {
       documentMessage.caption = text
       documentMessage.mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       documentMessage.pageCount = 0
-      documentMessage.jpegThumbnail = thumbBuffer
-      documentMessage.thumbnailWidth = 300
-      documentMessage.thumbnailHeight = 180
+      documentMessage.jpegThumbnail = thumb.buffer
+      documentMessage.thumbnailWidth = thumb.width
+      documentMessage.thumbnailHeight = thumb.height
 
       const waMsg = generateWAMessageFromContent(
         jid,
