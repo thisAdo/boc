@@ -16,6 +16,7 @@
     "node-webpmux": "^3.2.1",
     "pino": "^8.19.0",
     "readline-sync": "*",
-    "yt-search": "*" 
+    "yt-search": "*",
+    "pg": "^8.13.1"
   }
 }
