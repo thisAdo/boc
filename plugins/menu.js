@@ -34,23 +34,35 @@ export default {
   async run({
     m,
     conn,
+    sock,
     plugins = [],
     config,
     reply
   }) {
+    const client = conn || sock
+    const jid = m.chat || m.key?.remoteJid
+
     const safeReply = async (text) => {
       if (typeof reply === 'function') {
         return await reply(text)
       }
 
-      return await conn.sendMessage(
-        m.chat || m.key?.remoteJid,
+      return await client.sendMessage(
+        jid,
         { text },
         { quoted: m }
       )
     }
 
     try {
+      if (!client) {
+        throw new Error('No se encontró conn ni sock en el handler')
+      }
+
+      if (typeof client.waUploadToServer !== 'function') {
+        throw new Error('client.waUploadToServer no existe en el socket')
+      }
+
       const grouped = new Map()
 
       for (const plugin of plugins) {
@@ -115,7 +127,7 @@ export default {
           fileName: `🍄 ${config.bot.name} Menu.xlsx`
         },
         {
-          upload: conn.waUploadToServer
+          upload: client.waUploadToServer
         }
       )
 
@@ -131,17 +143,17 @@ export default {
       documentMessage.thumbnailHeight = 180
 
       const waMsg = generateWAMessageFromContent(
-        m.chat || m.key?.remoteJid,
+        jid,
         {
           documentMessage: proto.Message.DocumentMessage.fromObject(documentMessage)
         },
         {
-          userJid: conn.user?.id
+          userJid: client.user?.id
         }
       )
 
-      await conn.relayMessage(
-        m.chat || m.key?.remoteJid,
+      await client.relayMessage(
+        jid,
         waMsg.message,
         {
           messageId: waMsg.key.id
