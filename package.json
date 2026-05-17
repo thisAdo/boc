@@ -1,37 +1,21 @@
 {
-  "name": "boc-js",
-  "version": "1.0.0",
-  "description": "WhatsApp Bot powered by Baileys",
+  "name": "xdroid",
+  "version": "2.0.0",
+  "description": "Un bot de WhatsApp limpio, modular y fácil de editar con Baileys.",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "check": "node scripts/check.js"
   },
   "dependencies": {
-    "@vitalets/google-translate-api": "^8.0.0",
-    "@whiskeysockets/baileys": "github:thisAdo/Baileys",
-    "aptoide-scraper": "github:DIEGO-OFC/dv-aptoide-scraper",
-    "axios": "^1.9.0",
+    "bail": "github:Ado21/BailMod",
     "chalk": "^4.1.2",
-    "cheerio": "^1.0.0-rc.12",
-    "express": "^4.19.2",
-    "fluent-ffmpeg": "^2.1.2",
-    "form-data": "^4.0.0",
+    "fs-extra": "^11.2.0",
     "gradient-string": "^2.0.2",
-    "jimp": "*",
-    "lodash": "latest",
-    "lurcloud": "^1.1.5",
-    "moment": "^2.30.1",
-    "moment-timezone": "^0.5.43",
-    "node-cache": "^5.1.2",
-    "node-fetch": "^3.2.10",
-    "node-webpmux": "^3.2.0",
-    "pg": "^8.13.1",
-    "pino": "^7.11.0",
-    "qrcode": "^1.5.1",
-    "qrcode-terminal": "^0.12.0",
-    "qs": "*",
-    "yt-search": "^2.10.3"
+    "node-webpmux": "^3.2.1",
+    "pino": "^8.19.0",
+    "readline-sync": "*",
+    "yt-search": "*" 
   }
 }
