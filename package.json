@@ -9,7 +9,7 @@
     "check": "node scripts/check.js"
   },
   "dependencies": {
-    "bail": "github:Ado21/BailMod",
+    "bail": "github:thisAdo/Baileys",
     "chalk": "^4.1.2",
     "fs-extra": "^11.2.0",
     "gradient-string": "^2.0.2",
