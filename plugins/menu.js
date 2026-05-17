@@ -96,7 +96,7 @@ export default {
         `🌾 *Prefix actual:* ${config.prefix}`
       ].join('\n')
 
-      const thumbUrl = 'https://adofiles.i11.eu/dl/4e210018.jpg'
+      const thumbUrl = 'https://adofiles.vercel.app/dl/buzz-patrick.jpg%3A0212c591.jpg'
 
       const res = await fetch(thumbUrl)
 
