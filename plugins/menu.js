@@ -1,7 +1,8 @@
 import {
   proto,
   prepareWAMessageMedia,
-  generateWAMessageFromContent
+  generateWAMessageFromContent,
+  extractImageThumb
 } from 'bail'
 
 function formatCategoryLabel(value = '') {
@@ -22,6 +23,23 @@ function sortCategories(a = '', b = '') {
   return a.localeCompare(b, 'es', {
     sensitivity: 'base'
   })
+}
+
+async function getThumbnailBuffer(url) {
+  const res = await fetch(url)
+
+  if (!res.ok) {
+    throw new Error(`Error descargando thumbnail: ${res.status}`)
+  }
+
+  const raw = Buffer.from(await res.arrayBuffer())
+
+  try {
+    const { buffer } = await extractImageThumb(raw, 300)
+    return buffer
+  } catch {
+    return raw
+  }
 }
 
 export default {
@@ -66,7 +84,11 @@ export default {
       const grouped = new Map()
 
       for (const plugin of plugins) {
-        if (!plugin?.command || typeof plugin.run !== 'function') continue
+        const cmd = Array.isArray(plugin?.command)
+          ? plugin.command[0]
+          : plugin?.command
+
+        if (!cmd || typeof plugin.run !== 'function') continue
 
         const category = String(plugin.category || 'general')
           .trim()
@@ -76,7 +98,10 @@ export default {
           grouped.set(category, [])
         }
 
-        grouped.get(category).push(plugin)
+        grouped.get(category).push({
+          ...plugin,
+          command: cmd
+        })
       }
 
       const sections = [...grouped.entries()]
@@ -109,22 +134,18 @@ export default {
       ].join('\n')
 
       const thumbUrl = 'https://adofiles.vercel.app/dl/buzz-patrick.jpg%3A0212c591.jpg'
-
-      const res = await fetch(thumbUrl)
-
-      if (!res.ok) {
-        throw new Error(`Error descargando thumbnail: ${res.status}`)
-      }
-
-      const thumbBuffer = Buffer.from(await res.arrayBuffer())
-
+      const thumbBuffer = await getThumbnailBuffer(thumbUrl)
       const fakeDocument = Buffer.from(text, 'utf-8')
 
       const prepared = await prepareWAMessageMedia(
         {
           document: fakeDocument,
           mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          fileName: `🍄 ${config.bot.name} Menu.xlsx`
+          fileName: `🍄 ${config.bot.name} Menu.xlsx`,
+          caption: text,
+          jpegThumbnail: thumbBuffer,
+          thumbnailWidth: 300,
+          thumbnailHeight: 180
         },
         {
           upload: client.waUploadToServer
@@ -139,7 +160,7 @@ export default {
       documentMessage.mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       documentMessage.pageCount = 0
       documentMessage.jpegThumbnail = thumbBuffer
-      documentMessage.thumbnailWidth = 400
+      documentMessage.thumbnailWidth = 300
       documentMessage.thumbnailHeight = 180
 
       const waMsg = generateWAMessageFromContent(
