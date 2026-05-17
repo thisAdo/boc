@@ -11,223 +11,147 @@ function formatCategoryLabel(value = '') {
     .replace(/\s+/g, ' ')
     .split(' ')
     .filter(Boolean)
-    .map(
-      word =>
-        word.charAt(0).toUpperCase() +
-        word.slice(1)
-    )
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
 
-function sortCategories(
-  a = '',
-  b = ''
-) {
-  if (a === 'general')
-    return -1
+function sortCategories(a = '', b = '') {
+  if (a === 'general') return -1
+  if (b === 'general') return 1
 
-  if (b === 'general')
-    return 1
-
-  return a.localeCompare(
-    b,
-    'es',
-    {
-      sensitivity: 'base'
-    }
-  )
+  return a.localeCompare(b, 'es', {
+    sensitivity: 'base'
+  })
 }
 
 export default {
   command: 'menu',
   aliases: ['help'],
   category: 'general',
-  description:
-    'Muestra el menú principal',
+  description: 'Muestra el menú principal',
   usage: '.menu',
 
   async run({
     m,
     conn,
     plugins = [],
-    config
+    config,
+    reply
   }) {
-    const grouped =
-      new Map()
-
-    for (const plugin of plugins) {
-      if (
-        !plugin?.command ||
-        typeof plugin.run !==
-          'function'
-      )
-        continue
-
-      const category =
-        String(
-          plugin.category ||
-            'general'
-        )
-          .trim()
-          .toLowerCase() ||
-        'general'
-
-      if (
-        !grouped.has(category)
-      ) {
-        grouped.set(
-          category,
-          []
-        )
+    const safeReply = async (text) => {
+      if (typeof reply === 'function') {
+        return await reply(text)
       }
 
-      grouped
-        .get(category)
-        .push(plugin)
+      return await conn.sendMessage(
+        m.chat || m.key?.remoteJid,
+        { text },
+        { quoted: m }
+      )
     }
 
-    const sections = [
-      ...grouped.entries()
-    ]
-      .sort(([a], [b]) =>
-        sortCategories(a, b)
-      )
-      .map(
-        ([
-          category,
-          items
-        ]) => {
-          const lines =
-            items
-              .sort((a, b) =>
-                String(
-                  a.command
-                ).localeCompare(
-                  String(
-                    b.command
-                  ),
-                  'es',
-                  {
-                    sensitivity:
-                      'base'
-                  }
-                )
-              )
-              .map(plugin => {
-                const description =
-                  String(
-                    plugin.description ||
-                      'Sin descripción'
-                  ).trim()
+    try {
+      const grouped = new Map()
 
-                return `◦ *${config.prefix}${plugin.command}* — ${description}`
+      for (const plugin of plugins) {
+        if (!plugin?.command || typeof plugin.run !== 'function') continue
+
+        const category = String(plugin.category || 'general')
+          .trim()
+          .toLowerCase() || 'general'
+
+        if (!grouped.has(category)) {
+          grouped.set(category, [])
+        }
+
+        grouped.get(category).push(plugin)
+      }
+
+      const sections = [...grouped.entries()]
+        .sort(([a], [b]) => sortCategories(a, b))
+        .map(([category, items]) => {
+          const lines = items
+            .sort((a, b) =>
+              String(a.command).localeCompare(String(b.command), 'es', {
+                sensitivity: 'base'
               })
+            )
+            .map(plugin => {
+              const description = String(
+                plugin.description || 'Sin descripción'
+              ).trim()
+
+              return `◦ *${config.prefix}${plugin.command}* — ${description}`
+            })
 
           return `🍃 *${formatCategoryLabel(category)}*\n${lines.join('\n')}`
+        })
+
+      const text = [
+        `🌴 ¡Hola! Soy *${config.bot.name}*, un gusto ayudarte.`,
+        '*[🍄]* *Aquí tienes mi lista de comandos*',
+        '',
+        ...sections,
+        '',
+        `🌾 *Prefix actual:* ${config.prefix}`
+      ].join('\n')
+
+      const thumbUrl = 'https://adofiles.i11.eu/dl/4e210018.jpg'
+
+      const res = await fetch(thumbUrl)
+
+      if (!res.ok) {
+        throw new Error(`Error descargando thumbnail: ${res.status}`)
+      }
+
+      const thumbBuffer = Buffer.from(await res.arrayBuffer())
+
+      const fakeDocument = Buffer.from(text, 'utf-8')
+
+      const prepared = await prepareWAMessageMedia(
+        {
+          document: fakeDocument,
+          mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          fileName: `🍄 ${config.bot.name} Menu.xlsx`
+        },
+        {
+          upload: conn.waUploadToServer
         }
       )
 
-    const text = [
-      `🌴 ¡Hola! Soy *${config.bot.name}*, un gusto ayudarte.`,
-      '*[🍄]* *Aquí tienes mi lista de comandos*',
-      '',
-      ...sections,
-      '',
-      `🌾 *Prefix actual:* ${config.prefix}`
-    ].join('\n')
+      const documentMessage = prepared.documentMessage
 
-    try {
-      const thumbUrl =
-        'https://adofiles.i11.eu/dl/4e210018.jpg'
-
-      const res =
-        await fetch(
-          thumbUrl
-        )
-
-      if (!res.ok) {
-        throw new Error(
-          `Error descargando thumbnail: ${res.status}`
-        )
-      }
-
-      const thumbBuffer =
-        Buffer.from(
-          await res.arrayBuffer()
-        )
-
-      const fakeDocument =
-        Buffer.from(
-          text,
-          'utf-8'
-        )
-
-      const prepared =
-        await prepareWAMessageMedia(
-          {
-            document:
-              fakeDocument,
-            mimetype:
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            fileName: `🍄 ${config.bot.name} Menu.xlsx`
-          },
-          {
-            upload:
-              conn.waUploadToServer
-          }
-        )
-
-      const documentMessage =
-        prepared.documentMessage
-
-      documentMessage.fileName =
-        `🍄 ${config.bot.name} Menu.xlsx`
-
-      documentMessage.title =
-        `${config.bot.name} Menu`
-
-      documentMessage.caption =
-        text
-
-      documentMessage.mimetype =
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-
+      documentMessage.fileName = `🍄 ${config.bot.name} Menu.xlsx`
+      documentMessage.title = `${config.bot.name} Menu`
+      documentMessage.caption = text
+      documentMessage.mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       documentMessage.pageCount = 0
-
-      documentMessage.jpegThumbnail =
-        thumbBuffer
-
+      documentMessage.jpegThumbnail = thumbBuffer
       documentMessage.thumbnailWidth = 400
       documentMessage.thumbnailHeight = 180
 
-      const waMsg =
-        generateWAMessageFromContent(
-          m.chat,
-          {
-            documentMessage:
-              proto.Message.DocumentMessage.fromObject(
-                documentMessage
-              )
-          },
-          {
-            userJid:
-              conn.user?.id
-          }
-        )
+      const waMsg = generateWAMessageFromContent(
+        m.chat || m.key?.remoteJid,
+        {
+          documentMessage: proto.Message.DocumentMessage.fromObject(documentMessage)
+        },
+        {
+          userJid: conn.user?.id
+        }
+      )
 
       await conn.relayMessage(
-        m.chat,
+        m.chat || m.key?.remoteJid,
         waMsg.message,
         {
-          messageId:
-            waMsg.key.id
+          messageId: waMsg.key.id
         }
       )
     } catch (e) {
       console.error(e)
 
-      await m.reply(
-        'Error enviando el menú.'
+      await safeReply(
+        `🌾 *_Error enviando el menú_*\n◦ *Detalle:* ${String(e?.message || e)}`
       )
     }
   }
