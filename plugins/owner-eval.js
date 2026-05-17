@@ -1,30 +1,79 @@
-import { format } from 'util'
+import util from 'util'
+import { createRequire } from 'module'
 
-function getQuotedMessage(m) {
-  const msgType = Object.keys(m.message || {})[0]
-  const msgContent = m.message?.[msgType]
-  const contextInfo = msgContent?.contextInfo || m.message?.extendedTextMessage?.contextInfo
+const require = createRequire(import.meta.url)
+
+const cleanJson = (val) => {
+  const seen = new WeakSet()
+
+  return JSON.stringify(
+    val,
+    (key, value) => {
+      if (typeof value === 'bigint') return value.toString()
+      if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`
+      if (typeof value === 'symbol') return value.toString()
+
+      if (Buffer.isBuffer(value)) {
+        return {
+          type: 'Buffer',
+          data: Array.from(value)
+        }
+      }
+
+      if (value instanceof Uint8Array) {
+        return {
+          type: 'Uint8Array',
+          data: Array.from(value)
+        }
+      }
+
+      if (value && typeof value === 'object') {
+        if (seen.has(value)) return '[Circular]'
+        seen.add(value)
+      }
+
+      return value
+    },
+    2
+  )
+}
+
+const getMessageType = (message = {}) => {
+  return Object.keys(message || {})[0] || null
+}
+
+const getContextInfo = (msg) => {
+  const message = msg?.message || {}
+  const type = getMessageType(message)
+  const content = message?.[type]
+
+  return (
+    content?.contextInfo ||
+    message?.extendedTextMessage?.contextInfo ||
+    message?.imageMessage?.contextInfo ||
+    message?.videoMessage?.contextInfo ||
+    message?.documentMessage?.contextInfo ||
+    message?.stickerMessage?.contextInfo ||
+    message?.audioMessage?.contextInfo ||
+    null
+  )
+}
+
+const getQuoted = (msg) => {
+  const contextInfo = getContextInfo(msg)
 
   if (!contextInfo?.quotedMessage) return null
 
-  const quotedType = Object.keys(contextInfo.quotedMessage || {})[0]
-
   return {
     key: {
-      remoteJid: m.chat || m.key?.remoteJid,
+      remoteJid: msg.chat || msg.key?.remoteJid,
       fromMe: false,
       id: contextInfo.stanzaId,
-      participant: contextInfo.participant || m.key?.participant || m.sender
+      participant: contextInfo.participant || msg.key?.participant || msg.sender
     },
     message: contextInfo.quotedMessage,
-    sender: contextInfo.participant || m.key?.participant || m.sender,
-    type: quotedType,
-    text:
-      contextInfo.quotedMessage?.conversation ||
-      contextInfo.quotedMessage?.extendedTextMessage?.text ||
-      contextInfo.quotedMessage?.imageMessage?.caption ||
-      contextInfo.quotedMessage?.videoMessage?.caption ||
-      ''
+    sender: contextInfo.participant || msg.key?.participant || msg.sender,
+    type: getMessageType(contextInfo.quotedMessage)
   }
 }
 
@@ -33,62 +82,87 @@ export default {
   aliases: ['ex', 'eval', 'exec'],
   category: 'owner',
   description: 'Evalúa JavaScript desde el chat',
-  usage: '.e 2 + 2',
+  usage: '.e return m',
   ownerOnly: true,
 
-  async run({ input, args, m, sock, react, reply, invokedAs }) {
-    const quoted = getQuotedMessage(m)
-    const quotedJson = quoted ? JSON.stringify(quoted, null, 2) : null
+  async run({ input, args, m, sock, react, reply }) {
+    const code = (input || args?.join(' ') || '').trim()
+    const quoted = getQuoted(m)
 
-    if (!input.trim()) {
-      if (quotedJson) {
-        return await reply(`\`\`\`json\n${quotedJson}\n\`\`\``)
+    const msg = {
+      key: m.key,
+      message: m.message,
+      sender: m.sender || m.key?.participant || m.key?.remoteJid,
+      jid: m.chat || m.key?.remoteJid,
+      chat: m.chat || m.key?.remoteJid,
+      quoted,
+      type: getMessageType(m.message),
+      text: code,
+      isGroup: (m.chat || m.key?.remoteJid || '').endsWith('@g.us')
+    }
+
+    if (!code) {
+      if (quoted) {
+        return await reply(`\`\`\`json\n${cleanJson(quoted)}\n\`\`\``)
       }
 
-      return await reply('🍄 *_Debes escribir un comando a ejecutar o responder a un mensaje_*')
+      return await reply('> ⩩ Escribe algo que ejecutar. Ej: `.e return m`')
     }
 
     try {
-      await react('🕒')
+      if (react) await react('🕒')
 
       let printsLeft = 15
 
       const print = async (...values) => {
         if (--printsLeft < 0) return
-        await reply(format(...values))
+        await reply(util.format(...values))
       }
 
-      const source = invokedAs === 'e' ? `return (${input})` : input
+      const finalCode = code.startsWith('return ')
+        ? code
+        : `return (${code})`
 
-      const executor = new (async () => {}).constructor(
-        'print',
-        'm',
+      const fn = new Function(
         'sock',
-        'args',
-        'process',
+        'msg',
+        'm',
         'quoted',
-        'quotedJson',
-        source
+        'args',
+        'print',
+        'require',
+        'util',
+        'process',
+        `return (async () => { ${finalCode} })()`
       )
 
-      const result = await executor(
-        print,
-        m,
+      let result = await fn(
         sock,
-        args,
-        process,
+        msg,
+        msg,
         quoted,
-        quotedJson
+        args,
+        print,
+        require,
+        util,
+        process
       )
 
-      await react('✔️')
+      if (result === undefined) result = null
 
-      if (typeof result !== 'undefined') {
-        await reply(format(result))
-      }
-    } catch (error) {
-      await react('✖️')
-      await reply(format(error))
+      if (react) await react('✔️')
+
+      await reply(`\`\`\`json\n${cleanJson(result)}\n\`\`\``)
+    } catch (err) {
+      if (react) await react('✖️')
+
+      const errorJson = cleanJson({
+        error: true,
+        message: err.message,
+        stack: err.stack
+      })
+
+      await reply(`> ⩩ *Error:*\n\`\`\`json\n${errorJson}\n\`\`\``)
     }
   }
 }
